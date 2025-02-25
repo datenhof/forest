@@ -1,0 +1,54 @@
+[package]
+name = "forest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "forest"
+crate-type = ["rlib"]
+doctest = false
+
+[[bin]]
+name = "forest"
+path = "src/forest.rs"
+test = false
+
+[dependencies]
+rocksdb = { version = "0.23.0", features = ["snappy", "lz4", "zstd", "zlib", "bzip2"] }
+serde = { version = "1.0.217", features = ["derive"] }
+bincode = "1.3.3"
+thiserror = "2.0.11"
+chrono = "0.4.39"
+serde_json = "1.0.137"
+# rumqttd = { version = "0.19.0", path = "../../../../rumqtt/rumqttd", features = ["validate-client-prefix", "use-rustls", "verify-client-cert"] }
+rumqttd = { git = "https://github.com/wuttem/rumqtt.git", features = ["validate-client-prefix", "use-rustls", "verify-client-cert"] }
+tokio = { version = "1.43.0", features = ["full"] }
+config = "0.15.6"
+flume = { version = "0.11.1", features = ["async"] }
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
+axum = "0.8.1"
+tokio-util = "0.7.13"
+futures-util = "0.3.31"
+dashmap = "6.1.0"
+clap = { version = "4.5.29", features = ["derive"] }
+reqwest = { version = "0.12.12", features = ["json"] }
+
+[dev-dependencies]
+tempfile = "3.15.0"
+
+[[example]]
+name = "shadow"
+path = "examples/shadow.rs"
+test = false
+
+[[example]]
+name = "mqtt"
+path = "examples/mqtt.rs"
+test = false
+
+[[example]]
+name = "processor"
+path = "examples/processor.rs"
+test = false
