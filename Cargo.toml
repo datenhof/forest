@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "forest"
+path = "src/lib.rs"
 crate-type = ["rlib"]
 doctest = false
 
@@ -34,6 +35,7 @@ futures-util = "0.3.31"
 dashmap = "6.1.0"
 clap = { version = "4.5.29", features = ["derive"] }
 reqwest = { version = "0.12.12", features = ["json"] }
+openssl = { version = "0.10.71", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "3.15.0"
