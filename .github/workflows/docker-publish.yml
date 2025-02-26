@@ -73,7 +73,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=registry,name=${{ env.IMAGE_NAME }},annotation-index.org.opencontainers.image.description=IoT Forest
+          outputs: type=image,name=${{ env.IMAGE_NAME }},annotation-index.org.opencontainers.image.description=IoT Forest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
