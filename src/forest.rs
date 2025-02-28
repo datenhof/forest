@@ -1,12 +1,10 @@
 extern crate forest;
 
-use std::path::Path;
-
 use forest::config::ForestConfig;
 use forest::server::start_server;
 use forest::cli::{Cli, Commands};
 use forest::api::client::create_backup;
-use forest::certs::generate_client_certificate;
+use forest::certs::CertificateManager;
 use tokio::runtime::Runtime;
 use tracing::Level;
 use clap::Parser;
@@ -35,14 +33,21 @@ fn main() {
     let config_file = cli.config.as_deref();
     tracing::info!("Starting Forest");
 
-    let mut config = ForestConfig::new(config_file).unwrap();
+    let mut config = match ForestConfig::new(config_file) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::error!("Failed to load config: {}", e);
+            return;
+        }
+    };
 
     // Print Config
     tracing::info!("Config: {}", serde_json::to_string_pretty(&config).unwrap());
 
     // Print Tenant
     if let Some(tenant) = &cli.tenant {
-        tracing::warn!("Default Tenant: {}", tenant);
+        tracing::warn!("Set Tenant: {}", tenant);
+        config.tenant_id = tenant.clone();
     } else {
         tracing::info!("Using default tenant");
     }
@@ -81,6 +86,8 @@ fn main() {
 }
 
 fn run_server(rt: Runtime, config: ForestConfig) {
+    setup_server_certs(&config);
+    println!("Starting server");
     rt.block_on(async {
         let cancel_token = start_server(&config).await;
         tokio::select! {
@@ -110,17 +117,46 @@ fn run_create_backup(rt: Runtime, config: ForestConfig) {
     )
 }
 
-fn create_device(device_id: &str, config: ForestConfig) {
-    tracing::warn!("Creating device: {}", device_id);
-    // get cfssl directory
-    let cfssl_path= config.cfssl_path.map(|dir| Path::new(&dir).to_path_buf());
-    let cert_dir = config.cert_dir.map(|dir| Path::new(&dir).to_path_buf());
-    // make sure cert_dir is set
-    if cert_dir.is_none() {
-        tracing::error!("ssl_cert_dir is not set in config");
-        return;
+fn get_certificate_manager(config: &ForestConfig) -> CertificateManager {
+    let tenant_id = config.tenant_id.clone();
+    let cert_manager = match CertificateManager::new(&config.cert_dir, Some(tenant_id)) {
+        Ok(manager) => manager,
+        Err(e) => {
+            tracing::error!("Failed to create certificate manager: {}", e);
+            panic!("Failed to create certificate manager");
+        }
+    };
+    cert_manager
+}
+
+fn setup_server_certs(config: &ForestConfig) {
+    println!("Generating server certificates");
+    let cert_manager = get_certificate_manager(config);
+    let server_name = config.server_name.clone();
+    let host_names: Vec<&str> = config.host_names.iter().map(|x| &**x).collect();
+    match cert_manager.setup(&server_name, &host_names) {
+        Ok(_) => {
+            tracing::info!("Server certificates successfully set up");
+        },
+        Err(e) => {
+            tracing::error!("Failed to set up server certificates: {}", e);
+            panic!("Failed to set up server certificates");
+        },
     }
-    let device_cert = generate_client_certificate(device_id, &cert_dir.unwrap(), cfssl_path.as_deref(), None).unwrap();
-    println!("\nDevice Cert: \n{}", device_cert.cert);
-    println!("\nDevice Key: \n{}", device_cert.key);
+}
+
+fn create_device(device_id: &str, config: ForestConfig) {
+    println!("Creating device: {}", device_id);
+    let cert_manager = get_certificate_manager(&config);
+    match cert_manager.create_client_cert(device_id) {
+        Ok(_) => {
+            tracing::info!("Device certificate successfully created");
+        },
+        Err(e) => {
+            tracing::error!("Failed to create device certificate: {}", e);
+            panic!("Failed to create device certificate");
+        },
+    }
+    // println!("\nDevice Cert: \n{}", device_cert.cert);
+    // println!("\nDevice Key: \n{}", device_cert.key);
 }

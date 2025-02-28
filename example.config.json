@@ -2,9 +2,6 @@
     "mqtt": {
         "enable_heartbeat": true,
         "enable_ssl": true,
-        "ssl_ca_path": "../../infrastructure/certs/ca.pem",
-        "ssl_cert_path": "../../infrastructure/certs/server.pem",
-        "ssl_key_path": "../../infrastructure/certs/server-key.pem",
         "max_connections": 10000,
         "bind_v3": "127.0.0.1:1883",
         "bind_v5": "127.0.0.1:1884",
@@ -19,6 +16,5 @@
     },
     "bind_api": "127.0.0.1:8080",
     "tenant_id": "forest1",
-    "cfssl_path": "../../infrastructure/certs/",
-    "cert_dir": "../../infrastructure/certs/"
+    "cert_dir": ".local/certs/"
 }

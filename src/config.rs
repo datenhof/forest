@@ -13,8 +13,9 @@ pub struct ForestConfig {
     pub database: DatabaseConfig,
     pub bind_api: String,
     pub tenant_id: String,
-    pub cfssl_path: Option<String>,
-    pub cert_dir: Option<String>,
+    pub cert_dir: String,
+    pub server_name: String,
+    pub host_names: Vec<String>,
 }
 
 impl Default for ForestConfig {
@@ -25,8 +26,9 @@ impl Default for ForestConfig {
             database: DatabaseConfig::default(),
             bind_api: String::from("127.0.0.1:8807"),
             tenant_id: String::from("default"),
-            cfssl_path: None,
-            cert_dir: None,
+            cert_dir: "/etc/forest/certs".to_string(),
+            server_name: String::from("localhost"),
+            host_names: vec![String::from("localhost"), String::from("127.0.0.1")],
         }
     }
 }
@@ -49,8 +51,9 @@ impl ForestConfig {
             .set_default("database.backup_path", default_config.database.backup_path)?
             .set_default("bind_api", default_config.bind_api)?
             .set_default("tenant_id", default_config.tenant_id)?
-            .set_default("cfssl_path", default_config.cfssl_path)?
-            .set_default("cert_dir", default_config.cert_dir)?
+            // .set_default("cert_dir", default_config.cert_dir)?
+            .set_default("server_name", default_config.server_name)?
+            .set_default("host_names", default_config.host_names)?
             // Add in settings from environment variables (with prefix "FOREST_")
             .add_source(Environment::with_prefix("FOREST").separator("__"));
 
@@ -67,16 +70,15 @@ impl ForestConfig {
 
         // If we have ssl_cert_dir and dont have ssl paths for mqtt, we need to set them
         if let Ok(ref mut forest_config) = config {
-            if let Some(cert_dir) = &forest_config.cert_dir {
-                if forest_config.mqtt.ssl_cert_path.is_none() {
-                    forest_config.mqtt.ssl_cert_path = Some(format!("{}/server.pem", cert_dir));
-                }
-                if forest_config.mqtt.ssl_key_path.is_none() {
-                    forest_config.mqtt.ssl_key_path = Some(format!("{}/server-key.pem", cert_dir));
-                }
-                if forest_config.mqtt.ssl_ca_path.is_none() {
-                    forest_config.mqtt.ssl_ca_path = Some(format!("{}/ca.pem", cert_dir));
-                }
+            let cert_dir = forest_config.cert_dir.clone();
+            if forest_config.mqtt.ssl_cert_path.is_none() {
+                forest_config.mqtt.ssl_cert_path = Some(format!("{}/server.pem", cert_dir));
+            }
+            if forest_config.mqtt.ssl_key_path.is_none() {
+                forest_config.mqtt.ssl_key_path = Some(format!("{}/server-key.pem", cert_dir));
+            }
+            if forest_config.mqtt.ssl_ca_path.is_none() {
+                forest_config.mqtt.ssl_ca_path = Some(format!("{}/ca.pem", cert_dir));
             }
         }
 

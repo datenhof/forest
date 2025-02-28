@@ -11,3 +11,4 @@ target/
 
 **/.rocksdb/
 **/.rocksdb_backup/
+**/.local/
