@@ -1,9 +1,15 @@
 extern crate forest;
 
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use forest::config::ForestConfig;
+use forest::db::DB;
+use forest::models::TenantId;
 use forest::server::start_server;
 use forest::cli::{Cli, Commands};
 use forest::api::client::create_backup;
+use forest::api::services::create_device as create_device_api;
 use forest::certs::CertificateManager;
 use tokio::runtime::Runtime;
 use tracing::Level;
@@ -13,9 +19,9 @@ fn main() {
     let cli = Cli::parse();
 
     let debug_level = match cli.debug {
-        0 => Level::WARN,
-        1 => Level::INFO,
-        2 => Level::DEBUG,
+        0 => Level::INFO,
+        1 => Level::DEBUG,
+        2 => Level::TRACE,
         _ => Level::TRACE,
     };
 
@@ -151,16 +157,35 @@ fn setup_server_certs(config: &ForestConfig) {
 
 fn create_device(device_id: &str, config: ForestConfig) {
     println!("Creating device: {}", device_id);
-    let cert_manager = get_certificate_manager(&config);
-    match cert_manager.create_client_cert(device_id) {
-        Ok(data) => {
-            tracing::info!("Device certificate successfully created");
-            println!("\nDevice Cert: \n{}", data.cert);
-            println!("\nDevice Key: \n{}", data.key);
+
+    let cert_manager = Arc::new(get_certificate_manager(&config));
+    let db_path = PathBuf::from(&config.database.path);
+    let maybe_db = DB::open_default(db_path.to_str().unwrap());
+    let db = {
+        match maybe_db {
+            Ok(db) => Arc::new(db),
+            Err(e) => {
+                panic!("Failed to open RocksDB: {:?}", e);
+            }
+        }
+    };
+
+    let tenant_id = config.tenant_id.as_deref();
+    let tenant = TenantId::from_option(tenant_id);
+
+    match create_device_api(device_id, &tenant, db, cert_manager) {
+        Ok(device) => {
+            tracing::info!("Device successfully created");
+            println!("\nDevice ID: \n{}", device.device_id);
+            if let Some(key) = &device.key {
+                println!("\nDevice Key: \n{}", key);
+            }
+            if let Some(cert) = &device.certificate {
+                println!("\nDevice Cert: \n{}", cert);
+            }
         },
         Err(e) => {
-            tracing::error!("Failed to create device certificate: {}", e);
-            panic!("Failed to create device certificate");
+            tracing::error!("Failed to create device: {}", e);
         },
     }
 }

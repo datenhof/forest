@@ -1,4 +1,5 @@
 use crate::db::DatabaseError;
+use crate::certs::CertificateError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -12,9 +13,13 @@ pub enum AppError {
     NotFound(String),
     #[error("Database error")]
     DatabaseError(#[from] DatabaseError),
+    #[error("Certificate error")]
+    CertificateError(#[from] CertificateError),
     // Internal Server Error
     #[error("Internal server error: {0}")]
     InternalServerError(String),
+    #[error("Conflict: {0}")]
+    Conflict(String),
 }
 
 impl IntoResponse for AppError {
@@ -30,7 +35,12 @@ impl IntoResponse for AppError {
                 // Add msg to not found message
                 (StatusCode::NOT_FOUND, format!("Not found: {}", msg))
             }
-            AppError::DatabaseError(_e) => {
+            AppError::Conflict(msg) => {
+                // Add msg to conflict message
+                (StatusCode::CONFLICT, format!("Conflict: {}", msg))
+            }
+            AppError::DatabaseError(e) => {
+                tracing::error!(error=?e, "Database error in API");
                 // Add error to database error message
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -42,6 +52,14 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Internal server error: {}", msg),
+                )
+            }
+            AppError::CertificateError(e) => {
+                tracing::error!(error=?e, "Certificate error in API");
+                // Add error to certificate error message
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Certificate error".to_string(),
                 )
             }
         };

@@ -2,7 +2,7 @@ use crate::dataconfig::{DataConfig, DataConfigEntry};
 use crate::shadow::{
     Shadow, ShadowError, ShadowSerializationError, StateUpdateDocument,
 };
-use crate::models::{ShadowName, TenantId};
+use crate::models::{DeviceMetadata, ShadowName, TenantId};
 use crate::timeseries::{
     MetricTimeSeries, MetricValue, TimeSeriesConversions, TimeseriesSerializationError,
 };
@@ -580,7 +580,6 @@ impl DB {
                             device_prefix: device_prefix,
                             metrics: config.metrics,
                         });
-                        // configs.push((key_str.to_string(), config));
                     }
                     Err(e) => return Err(DatabaseError::RocksDBError(e)),
                 }
@@ -595,6 +594,92 @@ impl DB {
     pub fn create_backup(&self) -> Result<String, DatabaseError> {
         let backup_path = self.backup_path.clone();
         backup_db(&self, &backup_path)
+    }
+
+    fn _to_device_metadata_key(tenant_id: &TenantId, device_id: &str) -> Vec<u8> {
+        format!("device#{}#{}", tenant_id, device_id).into_bytes()
+    }
+
+    pub fn put_device_metadata(&self, metadata: &DeviceMetadata) -> Result<(), DatabaseError> {
+        if let Some(db) = &self.db {
+            let key = Self::_to_device_metadata_key(&metadata.tenant_id, &metadata.device_id);
+            let data = serde_json::to_vec(metadata).map_err(|e| {
+                DatabaseError::DatabaseValueError(format!("Failed to serialize device metadata: {}", e))
+            })?;
+            db.put(key, data)?;
+            Ok(())
+        } else {
+            Err(DatabaseError::DatabaseConnectionError)
+        }
+    }
+
+    pub fn get_device_metadata(
+        &self,
+        tenant_id: &TenantId,
+        device_id: &str,
+    ) -> Result<Option<DeviceMetadata>, DatabaseError> {
+        if let Some(db) = &self.db {
+            let key = Self::_to_device_metadata_key(tenant_id, device_id);
+            match db.get(&key)? {
+                Some(data) => {
+                    let metadata = serde_json::from_slice(&data).map_err(|e| {
+                        DatabaseError::DatabaseValueError(format!("Failed to deserialize device metadata: {}", e))
+                    })?;
+                    Ok(Some(metadata))
+                }
+                None => Ok(None),
+            }
+        } else {
+            Err(DatabaseError::DatabaseConnectionError)
+        }
+    }
+
+    pub fn list_devices(&self, tenant_id: &TenantId) -> Result<Vec<DeviceMetadata>, DatabaseError> {
+        let mut devices = Vec::new();
+        let prefix = format!("device#{}", tenant_id);
+
+        if let Some(db) = &self.db {
+            let iter = db.iterator(rocksdb::IteratorMode::From(
+                prefix.as_bytes(),
+                rocksdb::Direction::Forward,
+            ));
+
+            for item in iter {
+                match item {
+                    Ok((key, value)) => {
+                        let key_str = String::from_utf8_lossy(&key);
+                        // Stop iteration when we reach keys that don't match our prefix
+                        if !key_str.starts_with(&prefix) {
+                            break;
+                        }
+
+                        match serde_json::from_slice(&value) {
+                            Ok(metadata) => devices.push(metadata),
+                            Err(e) => {
+                                return Err(DatabaseError::DatabaseValueError(format!(
+                                    "Failed to deserialize device metadata: {}",
+                                    e
+                                )))
+                            }
+                        }
+                    }
+                    Err(e) => return Err(DatabaseError::RocksDBError(e)),
+                }
+            }
+        } else {
+            return Err(DatabaseError::DatabaseConnectionError);
+        }
+
+        Ok(devices)
+    }
+
+    pub fn delete_device_metadata(
+        &self,
+        tenant_id: &TenantId,
+        device_id: &str,
+    ) -> Result<(), DatabaseError> {
+        let key = Self::_to_device_metadata_key(tenant_id, device_id);
+        self.delete_data(&String::from_utf8_lossy(&key))
     }
 }
 

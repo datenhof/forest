@@ -284,7 +284,7 @@ async fn handle_message(msg: MqttMessage, state: ProcessorState) {
             });
         }
         _ => {
-            info!(topic = msg.topic, "Unknown topic type");
+            warn!(topic = msg.topic, "Unknown topic type");
         }
     }
 

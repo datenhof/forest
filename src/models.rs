@@ -55,6 +55,13 @@ impl DefaultString {
         Self::new(s)
     }
 
+    pub fn from_option(s: Option<&str>) -> Self {
+        match s {
+            Some(s) => Self::new(s),
+            None => DefaultString::Default,
+        }
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             DefaultString::Default => "default",
@@ -65,3 +72,30 @@ impl DefaultString {
 
 pub type ShadowName = DefaultString;
 pub type TenantId = DefaultString;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceMetadata {
+    pub device_id: String,
+    pub tenant_id: TenantId,
+    pub certificate: Option<String>,
+    pub key: Option<String>,
+    pub created_at: u64,
+}
+
+impl DeviceMetadata {
+    pub fn new(device_id: &str, tenant_id: &TenantId) -> Self {
+        Self {
+            device_id: device_id.to_string(),
+            tenant_id: tenant_id.to_owned(),
+            certificate: None,
+            key: None,
+            created_at: chrono::Utc::now().timestamp() as u64,
+        }
+    }
+    
+    pub fn with_credentials(mut self, certificate: String, key: String) -> Self {
+        self.certificate = Some(certificate);
+        self.key = Some(key);
+        self
+    }
+}

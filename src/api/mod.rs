@@ -2,10 +2,12 @@ pub mod error;
 pub mod handlers;
 pub mod routes;
 pub mod client;
+pub mod services;
 
 use tokio_util::sync::CancellationToken;
 
 use crate::api::routes::get_routes;
+use crate::certs::CertificateManager;
 use crate::config::ForestConfig;
 use crate::db::DB;
 use crate::mqtt::{MqttSender, MqttServerMetrics};
@@ -19,6 +21,7 @@ pub struct AppState {
     mqtt_metrics: Arc<MqttServerMetrics>,
     connected_clients: Arc<ConnectionSet>,
     shadow_topic_prefix: String,
+    cert_manager: Arc<CertificateManager>,
 }
 
 pub async fn start_api_server(
@@ -29,12 +32,14 @@ pub async fn start_api_server(
     connected_clients: Arc<ConnectionSet>,
     config: &ForestConfig,
 ) -> CancellationToken {
+    let cert_manager = Arc::new(CertificateManager::new(&config.cert_dir, config.tenant_id.clone()).unwrap());
     let state = AppState {
         db: db.clone(),
         mqtt_sender,
         mqtt_metrics,
         connected_clients,
         shadow_topic_prefix: config.processor.shadow_topic_prefix.to_owned(),
+        cert_manager,
     };
     let app = get_routes(state);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();

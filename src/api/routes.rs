@@ -5,6 +5,7 @@ use axum::{routing::get, routing::put, Router};
 pub fn get_routes(state: AppState) -> Router {
     Router::new()
         .route("/", get(home_handler))
+        .route("/health", get(health_handler))
         .route("/shadow/{device_id}", get(get_shadow_handler))
         .route("/shadow/{device_id}", put(update_shadow_handler))
         .route("/data/{device_id}/{metric}", get(get_timeseries_handler))
@@ -26,6 +27,16 @@ pub fn get_routes(state: AppState) -> Router {
         )
         .route("/dataconfig/{tenant_id}/all", get(list_configs_handler))
         .route("/connected/{tenant_id}", get(list_connections_handler))
+        .route(
+            "/devices/{tenant_id}",
+            get(list_devices_handler)
+        )
+        .route(
+            "/devices/{tenant_id}/{device_id}",
+            get(get_device_metadata_handler)
+                .post(post_device_metadata_handler)
+                .delete(delete_device_metadata_handler)
+        )
         .route("/database/backup", get(backup_database_handler))
         .with_state(state)
 }
