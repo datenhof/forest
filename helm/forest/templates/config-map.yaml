@@ -1,0 +1,27 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "forest.fullname" . }}
+  labels:
+    {{- include "forest.labels" . | nindent 4 }}
+data:
+  config.json: |-
+    {
+      "mqtt": {
+        "enable_heartbeat": true,
+        "enable_ssl": true,
+        "max_connections": 10000,
+        "bind_v3": "0.0.0.0:{{ .Values.forest.mqttV3Port }}",
+        "bind_v5": "0.0.0.0:{{ .Values.forest.mqttV5Port }}",
+        "bind_ws": "0.0.0.0:{{ .Values.forest.mqttWSPort }}"
+      },
+      "processor": {
+        "shadow_topic_prefix": "things/"
+      },
+      "database": {
+        "path": "/data/rocksdb/",
+        "create_if_missing": true
+      },
+      "bind_api": "0.0.0.0:{{ .Values.forest.apiPort }}",
+      "cert_dir": "/etc/forest/certs/"
+    }

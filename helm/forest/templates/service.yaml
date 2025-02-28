@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: '{{ include "forest.fullname" . }}-api'
+  labels:
+    {{- include "forest.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: api
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "forest.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: '{{ include "forest.fullname" . }}-mqtt'
+  labels:
+    {{- include "forest.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.forest.mqttV3NodePort }}
+      nodePort: {{ .Values.forest.mqttV3NodePort }}
+      targetPort: mqtt-v3
+      protocol: TCP
+      name: mqtt-v3
+    - port: {{ .Values.forest.mqttV5Port }}
+      nodePort: {{ .Values.forest.mqttV5NodePort }}
+      targetPort: mqtt-v5
+      protocol: TCP
+      name: mqtt-v5
+    - port:  {{ .Values.forest.mqttWSPort }}
+      nodePort: {{ .Values.forest.mqttWSNodePort }}
+      targetPort: mqtt-ws
+      protocol: TCP
+      name: mqtt-ws
+  selector:
+    {{- include "forest.selectorLabels" . | nindent 4 }}

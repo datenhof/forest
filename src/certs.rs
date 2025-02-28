@@ -53,6 +53,11 @@ pub enum CertificateError {
 // A type alias for our result type
 pub type CertResult<T> = Result<T, CertificateError>;
 
+pub struct CertificateData {
+    pub cert: String,
+    pub key: String,
+}
+
 /// Certificate Manager for handling CA, server and client certificates
 pub struct CertificateManager {
     cert_dir: PathBuf,
@@ -138,8 +143,8 @@ impl CertificateManager {
         }
     }
 
-    /// Save private key to file
-    fn save_private_key(&self, key: &PKey<Private>, filename: &str) -> CertResult<()> {
+    /// Save private key to file and return the PEM content as a string
+    fn save_private_key(&self, key: &PKey<Private>, filename: &str) -> CertResult<String> {
         let key_pem = key.private_key_to_pem_pkcs8()?;
         let file_path = self.get_file_path(filename);
         
@@ -152,11 +157,16 @@ impl CertificateManager {
         
         let mut file = File::create(file_path)?;
         file.write_all(&key_pem)?;
-        Ok(())
+        
+        // Convert to string to return
+        let key_string = String::from_utf8(key_pem)
+            .map_err(|_| CertificateError::ValidationError("Invalid UTF-8 in private key".to_string()))?;
+        
+        Ok(key_string)
     }
 
     /// Save certificate to file
-    fn save_certificate(&self, cert: &X509, filename: &str) -> CertResult<()> {
+    fn save_certificate(&self, cert: &X509, filename: &str) -> CertResult<String> {
         let cert_pem = cert.to_pem()?;
         let file_path = self.get_file_path(filename);
         
@@ -169,7 +179,12 @@ impl CertificateManager {
         
         let mut file = File::create(file_path)?;
         file.write_all(&cert_pem)?;
-        Ok(())
+
+        // Convert to string to return
+        let key_string = String::from_utf8(cert_pem)
+            .map_err(|_| CertificateError::ValidationError("Invalid UTF-8 in certificate".to_string()))?;
+        
+        Ok(key_string)
     }
 
     /// Load private key from file
@@ -300,7 +315,7 @@ impl CertificateManager {
     }
 
     /// Create a client certificate signed by the CA
-    pub fn create_client_cert(&self, client_name: &str) -> CertResult<()> {
+    pub fn create_client_cert(&self, client_name: &str) -> CertResult<CertificateData> {
         // Ensure CA exists
         self.ensure_ca_exists()?;
         
@@ -379,10 +394,10 @@ impl CertificateManager {
         let client_cert_filename = format!("{}-cert.pem", client_name);
         let client_key_filename = format!("{}-key.pem", client_name);
         
-        self.save_private_key(&client_key, &client_key_filename)?;
-        self.save_certificate(&client_cert, &client_cert_filename)?;
+        let key = self.save_private_key(&client_key, &client_key_filename)?;
+        let cert = self.save_certificate(&client_cert, &client_cert_filename)?;
         
-        Ok(())
+        Ok(CertificateData { cert, key })
     }
 
     /// Check if server certificate exists and contains all required hostnames

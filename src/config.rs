@@ -12,7 +12,7 @@ pub struct ForestConfig {
     pub processor: ProcessorConfig,
     pub database: DatabaseConfig,
     pub bind_api: String,
-    pub tenant_id: String,
+    pub tenant_id: Option<String>,
     pub cert_dir: String,
     pub server_name: String,
     pub host_names: Vec<String>,
@@ -25,7 +25,7 @@ impl Default for ForestConfig {
             processor: ProcessorConfig::default(),
             database: DatabaseConfig::default(),
             bind_api: String::from("127.0.0.1:8807"),
-            tenant_id: String::from("default"),
+            tenant_id: None,
             cert_dir: "/etc/forest/certs".to_string(),
             server_name: String::from("localhost"),
             host_names: vec![String::from("localhost"), String::from("127.0.0.1")],
@@ -71,6 +71,8 @@ impl ForestConfig {
         // If we have ssl_cert_dir and dont have ssl paths for mqtt, we need to set them
         if let Ok(ref mut forest_config) = config {
             let cert_dir = forest_config.cert_dir.clone();
+            let cert_dir = cert_dir.trim_end_matches('/');
+            
             if forest_config.mqtt.ssl_cert_path.is_none() {
                 forest_config.mqtt.ssl_cert_path = Some(format!("{}/server.pem", cert_dir));
             }

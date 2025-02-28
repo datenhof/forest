@@ -44,12 +44,16 @@ fn main() {
     // Print Config
     tracing::info!("Config: {}", serde_json::to_string_pretty(&config).unwrap());
 
-    // Print Tenant
+    // Print Tenant Warnings
     if let Some(tenant) = &cli.tenant {
         tracing::warn!("Set Tenant: {}", tenant);
-        config.tenant_id = tenant.clone();
+        tracing::warn!("Tenant is not implemented yet");
+        config.tenant_id = None;
     } else {
-        tracing::info!("Using default tenant");
+        if !config.tenant_id.is_none() {
+            tracing::warn!("Tenant is not implemented yet");
+            config.tenant_id = None;
+        }
     }
 
     if let Some(bind_api) = cli.bind_api {
@@ -119,7 +123,7 @@ fn run_create_backup(rt: Runtime, config: ForestConfig) {
 
 fn get_certificate_manager(config: &ForestConfig) -> CertificateManager {
     let tenant_id = config.tenant_id.clone();
-    let cert_manager = match CertificateManager::new(&config.cert_dir, Some(tenant_id)) {
+    let cert_manager = match CertificateManager::new(&config.cert_dir, tenant_id) {
         Ok(manager) => manager,
         Err(e) => {
             tracing::error!("Failed to create certificate manager: {}", e);
@@ -149,14 +153,14 @@ fn create_device(device_id: &str, config: ForestConfig) {
     println!("Creating device: {}", device_id);
     let cert_manager = get_certificate_manager(&config);
     match cert_manager.create_client_cert(device_id) {
-        Ok(_) => {
+        Ok(data) => {
             tracing::info!("Device certificate successfully created");
+            println!("\nDevice Cert: \n{}", data.cert);
+            println!("\nDevice Key: \n{}", data.key);
         },
         Err(e) => {
             tracing::error!("Failed to create device certificate: {}", e);
             panic!("Failed to create device certificate");
         },
     }
-    // println!("\nDevice Cert: \n{}", device_cert.cert);
-    // println!("\nDevice Key: \n{}", device_cert.key);
 }

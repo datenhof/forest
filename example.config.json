@@ -15,6 +15,6 @@
         "create_if_missing": true
     },
     "bind_api": "127.0.0.1:8080",
-    "tenant_id": "forest1",
+    "tenant_id": null,
     "cert_dir": ".local/certs/"
 }

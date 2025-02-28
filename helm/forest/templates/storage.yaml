@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: '{{ include "forest.fullname" . }}-data'
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/forestdb"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: '{{ include "forest.fullname" . }}-data-claim'
+  labels:
+    type: local
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: '{{ include "forest.fullname" . }}-cert'
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/forestcert"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: '{{ include "forest.fullname" . }}-cert-claim'
+  labels:
+    type: local
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

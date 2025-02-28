@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "forest.fullname" . }}
+  labels:
+    {{- include "forest.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "forest.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "forest.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "forest.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/app/forest", "-c", "/etc/forest/config.json", "--debug", "server"]
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/forest
+            - name: ca-certs-volume
+              mountPath: /etc/forest/cacerts
+              readOnly: true
+            - name: data-volume
+              mountPath: /data
+            - name: cert-volume
+              mountPath: /etc/forest/certs
+          ports:
+            - name: api
+              containerPort: {{ .Values.forest.apiPort }}
+              protocol: TCP
+            - name: mqtt-v3
+              containerPort: {{ .Values.forest.mqttV3Port }}
+              protocol: TCP
+            - name: mqtt-v5
+              containerPort: {{ .Values.forest.mqttV5Port }}
+              protocol: TCP
+            - name: mqtt-ws
+              containerPort: {{ .Values.forest.mqttWSPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: api
+          readinessProbe:
+            httpGet:
+              path: /
+              port: api
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "forest.fullname" . }}
+        - name: ca-certs-volume
+          secret:
+            secretName: '{{ include "forest.fullname" . }}-ca-certs'
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: '{{ include "forest.fullname" . }}-data-claim'
+        - name: cert-volume
+          persistentVolumeClaim:
+            claimName: '{{ include "forest.fullname" . }}-cert-claim'
