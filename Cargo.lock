@@ -2155,7 +2155,7 @@ dependencies = [
 [[package]]
 name = "rumqttd"
 version = "0.20.0"
-source = "git+https://github.com/wuttem/rumqtt.git#92659ea0cfcecb394811b739bf6b9f71c948ae7f"
+source = "git+https://github.com/wuttem/rumqtt.git?rev=c64fca5d45e31efbcb4392067b4e526a32fc3551#c64fca5d45e31efbcb4392067b4e526a32fc3551"
 dependencies = [
  "async-tungstenite",
  "axum 0.7.9",

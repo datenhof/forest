@@ -23,5 +23,7 @@ data:
         "create_if_missing": true
       },
       "bind_api": "0.0.0.0:{{ .Values.forest.apiPort }}",
-      "cert_dir": "/etc/forest/certs/"
+      "cert_dir": "/etc/forest/certs/",
+      "server_name": "{{ .Values.forest.serverName }}",
+      "host_names": {{ .Values.forest.hostNames | toJson }}
     }

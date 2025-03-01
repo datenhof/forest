@@ -5,6 +5,7 @@ metadata:
   labels:
     type: local
 spec:
+  storageClassName: manual
   capacity:
     storage: 20Gi
   accessModes:
@@ -20,6 +21,7 @@ metadata:
   labels:
     type: local
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
@@ -33,6 +35,7 @@ metadata:
   labels:
     type: local
 spec:
+  storageClassName: manual
   capacity:
     storage: 1Gi
   accessModes:
@@ -48,6 +51,7 @@ metadata:
   labels:
     type: local
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
