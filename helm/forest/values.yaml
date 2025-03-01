@@ -17,6 +17,8 @@ forest:
   mqttV3NodePort: 31883
   mqttV5NodePort: 31884
   mqttWSNodePort: 31885
+  serverName: "forest"
+  hostNames: ["localhost", "127.0.0.1"]
 
 certs:
   caPem: |
