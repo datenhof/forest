@@ -53,6 +53,11 @@ pub struct StateDocument {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeltaResponse {
+    pub state: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NestedStateDocument {
     pub state: StateDocument,
 }
@@ -184,15 +189,17 @@ impl Shadow {
         &self.state.delta
     }
 
-    pub fn get_delta_json(&self) -> Result<Option<String>, ShadowSerializationError> {
-        if !self.state.delta.is_object() {
+    pub fn get_delta_response_json(&self) -> Result<Option<String>, ShadowSerializationError> {
+        if self.state.delta.is_null() {
             return Ok(None);
         }
         let delta_obj = self.state.delta.as_object().unwrap();
         if delta_obj.is_empty() {
             return Ok(None);
         }
-        Ok(Some(serde_json::to_string(delta_obj)?))
+        Ok(Some(serde_json::to_string(&DeltaResponse {
+            state: self.state.delta.clone(),
+        })?))
     }
 
     pub fn get_reported_metadata(&self) -> &Value {

@@ -91,7 +91,7 @@ pub fn send_delta_to_mqtt(
     let return_topic =
         get_delta_return_topic(&shadow.device_id, &shadow.shadow_name, shadow_topic_prefix);
     // Send delta to the device
-    let delta_json = shadow.get_delta_json()?;
+    let delta_json = shadow.get_delta_response_json()?;
     match delta_json {
         Some(json) => {
             mqtt_sender.publish(return_topic.to_string(), json.into_bytes())?;
