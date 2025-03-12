@@ -23,7 +23,7 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - port: {{ .Values.forest.mqttV3NodePort }}
+    - port: {{ .Values.forest.mqttV3Port }}
       nodePort: {{ .Values.forest.mqttV3NodePort }}
       targetPort: mqtt-v3
       protocol: TCP

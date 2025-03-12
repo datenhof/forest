@@ -16,13 +16,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-// #[derive(Serialize, Clone)]
-// pub struct ServerMetrics {
-//     messages_received: u64,
-//     messages_sent: u64,
-//     messages_dropped: u64,
-// }
-
 #[derive(Serialize, Clone)]
 pub struct HomeResponse {
     pub connected_devices: usize,
@@ -63,14 +56,21 @@ pub async fn health_handler() -> &'static str {
 }
 
 pub async fn get_shadow_handler(
-    Path(device_id): Path<String>,
+    Path((_tenant_id, device_id)): Path<(String, String)>,
     State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Shadow>, AppError> {
     let db = state.db.clone();
-    match db._get_shadow(&device_id, &ShadowName::Default, &TenantId::Default) {
+    let maybe_shadow_name = params.get("name");
+    let shadow_name = match maybe_shadow_name {
+        Some(name) => ShadowName::from_str(name),
+        None => ShadowName::Default,
+    };
+    match db._get_shadow(&device_id, &shadow_name, &TenantId::Default) {
         Ok(doc) => Ok(Json(doc)),
         Err(DatabaseError::NotFoundError(_)) => Err(AppError::NotFound(format!(
-            "Shadow not found for device: {}",
+            "Shadow ({}) not found for device: {}",
+            shadow_name.as_str(),
             device_id
         ))),
         Err(e) => Err(AppError::DatabaseError(e)),
@@ -78,13 +78,17 @@ pub async fn get_shadow_handler(
 }
 
 pub async fn update_shadow_handler(
-    Path(device_id): Path<String>,
+    Path((_tenant_id, device_id)): Path<(String, String)>,
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
     Json(nested_update_doc): Json<NestedStateDocument>,
 ) -> Result<Json<Shadow>, AppError> {
     let tenant_id = TenantId::Default;
-    let shadow_name = ShadowName::Default;
+    let maybe_shadow_name = params.get("name");
+    let shadow_name = match maybe_shadow_name {
+        Some(name) => ShadowName::from_str(name),
+        None => ShadowName::Default,
+    };
     let update_doc = StateUpdateDocument::from_nested_state(
         nested_update_doc,
         &device_id,
@@ -114,7 +118,7 @@ pub struct TimeseriesQuery {
 }
 
 pub async fn get_timeseries_handler(
-    Path((device_id, metric)): Path<(String, String)>,
+    Path((_tenant_id, device_id, metric)): Path<(String, String, String)>,
     State(state): State<AppState>,
     Query(range): Query<TimeseriesQuery>,
 ) -> Result<Json<TimeSeriesModel>, AppError> {
@@ -139,7 +143,7 @@ pub struct LastValuesQuery {
 }
 
 pub async fn get_last_timeseries_handler(
-    Path((device_id, metric)): Path<(String, String)>,
+    Path((_tenant_id, device_id, metric)): Path<(String, String, String)>,
     State(state): State<AppState>,
     Query(query): Query<LastValuesQuery>,
 ) -> Result<Json<TimeSeriesModel>, AppError> {
@@ -187,13 +191,30 @@ pub async fn store_tenant_config_handler(
     }
 }
 
-pub async fn get_config_handler(
-    Path((tenant_id, device_id)): Path<(String, Option<String>)>,
+pub async fn get_tenant_config_handler(
+    Path(tenant_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Json<DataConfig>, AppError> {
     let db = &state.db;
     let tenant_id = TenantId::from_str(&tenant_id);
-    match db.get_data_config(&tenant_id, device_id.as_deref()) {
+    match db.get_data_config(&tenant_id, None) {
+        Ok(Some(config)) => Ok(Json(config)),
+        Ok(None) => Err(AppError::NotFound(format!(
+            "No config found for tenant: {}",
+            tenant_id
+        ))),
+        Err(DatabaseError::NotFoundError(msg)) => Err(AppError::NotFound(msg)),
+        Err(e) => Err(AppError::DatabaseError(e)),
+    }
+}
+
+pub async fn get_config_handler(
+    Path((tenant_id, device_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+) -> Result<Json<DataConfig>, AppError> {
+    let db = &state.db;
+    let tenant_id = TenantId::from_str(&tenant_id);
+    match db.get_data_config(&tenant_id, Some(&device_id)) {
         Ok(Some(config)) => Ok(Json(config)),
         Ok(None) => Err(AppError::NotFound(format!(
             "No config found for tenant: {} and device: {:?}",
