@@ -82,6 +82,16 @@ pub struct DeviceMetadata {
     pub created_at: u64,
 }
 
+// Add this struct to your models.rs file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceInformation {
+    pub device_id: String,
+    pub tenant_id: TenantId,
+    pub certificate: Option<String>,
+    pub connected: bool,
+    pub last_shadow_update: Option<u64>,
+}
+
 impl DeviceMetadata {
     pub fn new(device_id: &str, tenant_id: &TenantId) -> Self {
         Self {

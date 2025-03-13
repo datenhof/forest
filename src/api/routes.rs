@@ -35,9 +35,13 @@ pub fn get_routes(state: AppState) -> Router {
         )
         .route(
             "/{tenant_id}/devices/{device_id}",
-            get(get_device_metadata_handler)
+            get(get_device_info_handler)
                 .post(post_device_metadata_handler)
                 .delete(delete_device_metadata_handler)
+        )
+        .route(
+            "/{tenant_id}/devices/{device_id}/metadata",
+            get(get_device_metadata_handler)
         )
         .route("/database/backup", get(backup_database_handler))
         .with_state(state)

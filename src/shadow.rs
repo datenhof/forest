@@ -29,6 +29,11 @@ pub struct Shadow {
     state: StateDocument,
     metadata: MetadataDocument,
     version: u64,
+    last_updated: u64,
+}
+
+fn current_timestamp() -> u64 {
+    Utc::now().timestamp() as u64
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,7 +167,12 @@ impl Shadow {
                 desired: Value::Null,
             },
             version: 0,
+            last_updated: current_timestamp(),
         }
+    }
+
+    pub fn get_last_updated(&self) -> u64 {
+        self.last_updated
     }
 
     pub fn from_json(json: &str) -> Result<Self, ShadowSerializationError> {
@@ -270,16 +280,13 @@ impl Shadow {
         // Calculate delta and increment version
         self.calculate_delta();
         self.version += 1;
+        self.last_updated = current_timestamp();
 
         Ok(())
     }
 }
 
 impl StateDocument {
-    fn current_timestamp() -> u64 {
-        Utc::now().timestamp() as u64
-    }
-
     pub fn update(&mut self, update: &StateDocument, metadata: &mut MetadataDocument) {
         // Ensure metadata state starts as an object
         if metadata.reported.is_null() {
@@ -344,7 +351,7 @@ impl StateDocument {
             }
         }
 
-        let timestamp = StateDocument::current_timestamp();
+        let timestamp = current_timestamp();
         // Update reported
         if update.reported.is_object() {
             update_recursive(

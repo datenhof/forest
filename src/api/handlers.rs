@@ -7,7 +7,7 @@ use crate::dataconfig::{DataConfig, DataConfigEntry};
 use crate::db::DatabaseError;
 use crate::processor::send_delta_to_mqtt;
 use crate::shadow::{NestedStateDocument, Shadow, StateUpdateDocument};
-use crate::models::DeviceMetadata;
+use crate::models::{DeviceInformation, DeviceMetadata};
 use crate::models::{ShadowName, TenantId};
 use crate::timeseries::{TimeSeriesConversions, TimeSeriesModel};
 use axum::{
@@ -306,6 +306,60 @@ pub async fn post_device_metadata_handler(
         Ok(_) => Ok(Json(metadata)),
         Err(e) => Err(AppError::DatabaseError(e)),
     }
+}
+
+// Handler to get detailed device information
+pub async fn get_device_info_handler(
+    Path((tenant_id, device_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<DeviceInformation>, AppError> {
+    let tenant_id = TenantId::from_str(&tenant_id);
+    
+    // Get device metadata
+    let metadata = match state.db.get_device_metadata(&tenant_id, &device_id) {
+        Ok(Some(metadata)) => metadata,
+        Ok(None) => return Err(AppError::NotFound(format!(
+            "Device metadata not found for tenant: {} and device: {}",
+            tenant_id, device_id
+        ))),
+        Err(e) => return Err(AppError::DatabaseError(e)),
+    };
+    
+    // Check connection status
+    let connected = state.connected_clients.contains(&device_id);
+    
+    // Get shadow last update time if requested
+    let mut last_shadow_update = None;
+
+    // Get shadow name from query params or use default
+    let maybe_shadow_name = params.get("name");
+    let shadow_name = match maybe_shadow_name {
+        Some(name) => ShadowName::from_str(name),
+        None => ShadowName::Default,
+    };
+    
+    // Try to get the shadow to extract last_updated
+    match state.db._get_shadow(&device_id, &shadow_name, &tenant_id) {
+        Ok(shadow) => {
+            last_shadow_update = Some(shadow.get_last_updated());
+        },
+        Err(DatabaseError::NotFoundError(_)) => {
+            // No shadow found, leave last_shadow_update as None
+        },
+        Err(e) => return Err(AppError::DatabaseError(e)),
+    }
+    
+    // Construct the DeviceInformation response
+    let device_info = DeviceInformation {
+        device_id: metadata.device_id,
+        tenant_id: metadata.tenant_id,
+        certificate: metadata.certificate,
+        connected,
+        last_shadow_update,
+    };
+    
+    Ok(Json(device_info))
 }
 
 // Handler to get device metadata
